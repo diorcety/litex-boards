@@ -120,7 +120,8 @@ class BaseSoC(SoCCore):
         if with_ethernet or with_etherbone:
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks"),
-                pads       = self.platform.request("eth"))
+                pads       = self.platform.request("eth"),
+                clk_freq   = sys_clk_freq)
             platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {{main_ethphy_eth_rx_clk_ibuf}}]")
             platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {{soclinux_ethphy_eth_rx_clk_ibuf}}]")
             if with_ethernet:

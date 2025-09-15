@@ -95,7 +95,8 @@ class BaseSoC(SoCCore):
             self.ethphy = LiteEthS7PHYRGMII(
                 clock_pads = self.platform.request("eth_clocks"),
                 pads       = self.platform.request("eth"),
-                hw_reset_cycles = math.ceil(float(eth_reset_time) * self.sys_clk_freq)
+                hw_reset_cycles = math.ceil(float(eth_reset_time) * self.sys_clk_freq),
+                clk_freq        = self.sys_clk_freq
             )
             if with_ethernet:
                 self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip)

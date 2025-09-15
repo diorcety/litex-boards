@@ -119,6 +119,7 @@ class BaseSoC(SoCCore):
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks"),
                 pads       = self.platform.request("eth"),
+                clk_freq   = sys_clk_freq,
                 tx_delay   = 0
             )
 

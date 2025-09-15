@@ -107,8 +107,9 @@ class BaseSoC(SoCCore):
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks", 0),
                 pads       = self.platform.request("eth", 0),
-                tx_delay = 1.417e-9,
-                rx_delay = 1.417e-9,
+                tx_delay   = 1.417e-9,
+                rx_delay   = 1.417e-9,
+                clk_freq   = sys_clk_freq,
             )
             self.add_ethernet(phy=self.ethphy)
 

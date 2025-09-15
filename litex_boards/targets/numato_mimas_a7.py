@@ -75,7 +75,8 @@ class BaseSoC(SoCCore):
         if with_ethernet:
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks"),
-                pads       = self.platform.request("eth"))
+                pads       = self.platform.request("eth"),
+                clk_freq   = sys_clk_freq)
             self.add_ethernet(phy=self.ethphy)
 
         # Leds -------------------------------------------------------------------------------------

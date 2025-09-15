@@ -136,7 +136,8 @@ class BaseSoC(SoCCore):
                 # phy
                 self.ethphy = LiteEthPHYRGMII(
                     clock_pads = self.platform.request("eth_clocks"),
-                    pads       = self.platform.request("eth"))
+                    pads       = self.platform.request("eth"),
+                    clk_freq   = sys_clk_freq)
 
             # 1000BaseX Ethernet PHY ---------------------------------------------------------------
             if eth_phy == "1000basex":

@@ -25,7 +25,6 @@ from litedram.phy import s7ddrphy
 
 from litedram.common import PHYPadsReducer
 
-from liteeth.phy.s7rgmii import LiteEthPHYRGMII
 from liteeth.phy.v7_1000basex import V7_1000BASEX
 from liteeth.phy import LiteEthPHY
 

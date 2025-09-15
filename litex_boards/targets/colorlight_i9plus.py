@@ -120,7 +120,8 @@ class BaseSoC(SoCCore):
             self.ethphy = LiteEthPHYRGMII(
                 clock_pads = self.platform.request("eth_clocks", eth_port),
                 pads       = self.platform.request("eth", eth_port),
-                tx_delay = 0)
+                clk_freq   = sys_clk_freq,
+                tx_delay   = 0)
             if with_ethernet:
                 self.add_ethernet(phy=self.ethphy, dynamic_ip=eth_dynamic_ip)
             if with_etherbone:
