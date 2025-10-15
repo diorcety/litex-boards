@@ -93,14 +93,14 @@ _io = [
     (
         "clk100",
         0,
-        Subsignal("p", Pins("F6"), IOStandard("DIFF_SSTL12")),  # MGTP_B216_REF_CLK_P0
-        Subsignal("n", Pins("E6"), IOStandard("DIFF_SSTL12")),  # MGTP_B216_REF_CLK_N0
+        Subsignal("p", Pins("F6")),  # MGTP_B216_REF_CLK_P0
+        Subsignal("n", Pins("E6")),  # MGTP_B216_REF_CLK_N0
     ),
     (
         "clk125",
         0,
-        Subsignal("p", Pins("F10"), IOStandard("DIFF_SSTL12")),  # MGTP_B216_REF_CLK_P1
-        Subsignal("n", Pins("E10"), IOStandard("DIFF_SSTL12")),  # MGTP_B216_REF_CLK_N1
+        Subsignal("p", Pins("F10")),  # MGTP_B216_REF_CLK_P1
+        Subsignal("n", Pins("E10")),  # MGTP_B216_REF_CLK_N1
     ),
     # Leds
     ("baseboard_led", 0, Pins("H15"), IOStandard("LVCMOS33")),  # LED0
@@ -218,67 +218,43 @@ _io = [
     ),
     # SFP
     (
-        "sfp_a",
+        "sfp",
         0,  # SFP A
-        Subsignal("txp", Pins("B6")),  #  MGTP_B216_TX_P2
-        Subsignal("txn", Pins("A6")),  #  MGTP_B216_TX_N2
-        Subsignal("rxp", Pins("B10")),  # MGTP_B216_RX_P2
-        Subsignal("rxn", Pins("A10")),  # MGTP_B216_RX_N2
+        Subsignal("txp", Pins("B6")),  #  MGTP_B216_TX_P2: /!\ Datasheet mixes up TX and RX
+        Subsignal("txn", Pins("A6")),  #  MGTP_B216_TX_N2: /!\ Datasheet mixes up TX and RX
+        Subsignal("rxp", Pins("B10")),  # MGTP_B216_RX_P2: /!\ Datasheet mixes up TX and RX
+        Subsignal("rxn", Pins("A10")),  # MGTP_B216_RX_N2: /!\ Datasheet mixes up TX and RX
     ),
     (
-        "sfp_a_tx",
-        0,  # SFP A
-        Subsignal("p", Pins("B6")),  # MGTP_B216_TX_P2
-        Subsignal("n", Pins("A6")),  # MGTP_B216_TX_N2
-    ),
-    (
-        "sfp_a_rx",
-        0,  # SFP A
-        Subsignal("p", Pins("B10")),  # MGTP_B216_RX_P2
-        Subsignal("n", Pins("A10")),  # MGTP_B216_RX_N2
-    ),
-    (
-        "sfp_b",
-        0,  # SFP B
-        Subsignal("txp", Pins("D7")),  # MGTP_B216_TX_P3
-        Subsignal("txn", Pins("C7")),  # MGTP_B216_TX_N3
-        Subsignal("rxp", Pins("D9")),  # MGTP_B216_RX_P3
-        Subsignal("rxn", Pins("C9")),  # MGTP_B216_RX_N3
-    ),
-    (
-        "sfp_b_tx",
-        0,  # SFP B
-        Subsignal("p", Pins("D7")),  # MGTP_B216_TX_P3
-        Subsignal("n", Pins("C7")),  # MGTP_B216_TX_N3
-    ),
-    (
-        "sfp_b_rx",
-        0,  # SFP B
-        Subsignal("p", Pins("D9")),  # MGTP_B216_RX_P3
-        Subsignal("n", Pins("C9")),  # MGTP_B216_RX_N3
+        "sfp",
+        1,  # SFP B
+        Subsignal("txp", Pins("D7")),  # MGTP_B216_TX_P3: /!\ Datasheet mixes up TX and RX
+        Subsignal("txn", Pins("C7")),  # MGTP_B216_TX_N3: /!\ Datasheet mixes up TX and RX
+        Subsignal("rxp", Pins("D9")),  # MGTP_B216_RX_P3: /!\ Datasheet mixes up TX and RX
+        Subsignal("rxn", Pins("C9")),  # MGTP_B216_RX_N3: /!\ Datasheet mixes up TX and RX
     ),
     # PCIe
     (
         "pcie_x1",
         0,
         Subsignal("rst_n", Pins("R16"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),  # PCIE_RST
-        Subsignal("clk_p", Pins("F6")),  #                          REFCLK+
-        Subsignal("clk_n", Pins("E6")),  #                          REFCLK-
-        Subsignal("rx_p", Pins("B8")),  #                           PETP0
-        Subsignal("rx_n", Pins("A8")),  #                           PETN0
-        Subsignal("tx_p", Pins("B4")),  #                           PERP0
-        Subsignal("tx_n", Pins("A4")),  #                           PERN0
+        Subsignal("clk_p", Pins("F6")),  #                                               REFCLK+
+        Subsignal("clk_n", Pins("E6")),  #                                               REFCLK-
+        Subsignal("rx_p", Pins("B8")),  #                                                PETP0
+        Subsignal("rx_n", Pins("A8")),  #                                                PETN0
+        Subsignal("tx_p", Pins("B4")),  #                                                PERP0
+        Subsignal("tx_n", Pins("A4")),  #                                                PERN0
     ),
     (
         "pcie_x2",
         0,
         Subsignal("rst_n", Pins("R16"), IOStandard("LVCMOS33"), Misc("PULLUP=TRUE")),  # PCIE_RST
-        Subsignal("clk_p", Pins("F6")),  #                          REFCLK+
-        Subsignal("clk_n", Pins("E6")),  #                          REFCLK-
-        Subsignal("rx_p", Pins("B8 D11")),  #                       PETP0-1
-        Subsignal("rx_n", Pins("A8 C11")),  #                       PETN0-1
-        Subsignal("tx_p", Pins("B4 D5")),  #                        PERP0-1
-        Subsignal("tx_n", Pins("A4 C5")),  #                        PERN0-1
+        Subsignal("clk_p", Pins("F6")),  #                                               REFCLK+
+        Subsignal("clk_n", Pins("E6")),  #                                               REFCLK-
+        Subsignal("rx_p", Pins("B8 D11")),  #                                            PETP0-1
+        Subsignal("rx_n", Pins("A8 C11")),  #                                            PETN0-1
+        Subsignal("tx_p", Pins("B4 D5")),  #                                             PERP0-1
+        Subsignal("tx_n", Pins("A4 C5")),  #                                             PERN0-1
     ),
 ]
 
