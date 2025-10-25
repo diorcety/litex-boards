@@ -24,8 +24,6 @@ from litedram.modules import NT5CC128M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy import LiteEthS7PHYRGMII
-from liteeth.phy.a7_1000basex import A7_1000BASEX
-from liteeth.phy.a7_gtp import QPLL, QPLLSettings
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
 
@@ -93,49 +91,13 @@ class BaseSoC(SoCCore):
             self.ddrphy = s7ddrphy.A7DDRPHY(platform.request("ddram"),
                 memtype      = "DDR3",
                 nphases      = 4,
-                sys_clk_freq = sys_clk_freq,
-            )
+                sys_clk_freq = sys_clk_freq)
             self.add_sdram("sdram",
                 phy                     = self.ddrphy,
                 module                  = NT5CC128M16(sys_clk_freq, "1:4"),
                 l2_cache_size           = kwargs.get("l2_size", 8192),
-                l2_cache_full_memory_we = (toolchain=="vivado"),
+                l2_cache_full_memory_we = (toolchain=="vivado")
             )
-
-        # PCIe -------------------------------------------------------------------------------------
-        if with_pcie:
-            qpll_pcie_settings = None
-            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x2"),
-                data_width = 64,
-                bar0_size  = 0x20000)
-            self.add_pcie(phy=self.pcie_phy, ndmas=1)
-
-        if with_ethernet or with_etherbone:
-            refclk125 = self.platform.request("clk125")
-            refclk125_se = Signal()
-            self.specials += Instance("IBUFDS_GTE2",
-                    i_CEB = 0,
-                    i_I   = refclk125.p,
-                    i_IB  = refclk125.n,
-                    o_O   = refclk125_se,
-                )
-
-        if with_ethernet or with_etherbone or with_pcie:
-            qpll_eth_settings = QPLLSettings(
-                refclksel  = 0b001,
-                fbdiv      = 4,
-                fbdiv_45   = 5,
-                refclk_div = 1,
-            )
-
-            # Shared QPLL.
-            self.qpll = qpll = QPLL(
-                gtrefclk0     = Open() if not with_pcie else self.pcie_phy.pcie_refclk,
-                qpllsettings0 = None   if not with_pcie else qpll_pcie_settings,
-                gtrefclk1     = Open() if not (with_ethernet or with_etherbone) else refclk125_se,
-                qpllsettings1 = None   if not (with_ethernet or with_etherbone) else qpll_eth_settings,
-            )
-            self.submodules += qpll
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         if with_ethernet or with_etherbone:
@@ -144,9 +106,10 @@ class BaseSoC(SoCCore):
                 pads            = self.platform.request("eth", 0),
                 hw_reset_cycles = math.ceil(float(eth_reset_time) * self.sys_clk_freq),
                 clk_freq        = self.sys_clk_freq,
-                rx_delay        = 1e-9,   # Already delayed by RXDLY on board: compensate clock path
-                cm_type         = "PLL",  # Use PLL by default
+                rx_delay        = 1e-9,  # Already delayed by RXDLY on board: compensate clock path
+                cm_type         = "PLL"  # Use PLL by default
             )
+            self.add_csr("ethphy")
             self.ethphy.add_timing_constraints(platform, self.crg.cd_sys.clk)
 
             self.ethphy1 = LiteEthS7PHYRGMII(
@@ -154,63 +117,25 @@ class BaseSoC(SoCCore):
                 pads            = self.platform.request("eth", 1),
                 hw_reset_cycles = math.ceil(float(eth_reset_time) * self.sys_clk_freq),
                 clk_freq        = self.sys_clk_freq,
-                rx_delay        = 1e-9,    # Already delayed by RXDLY on board: compensate clock path
-                cm_type         = "MMCM",  # PLL is already used by ethphy
+                rx_delay        = 1e-9,   # Already delayed by RXDLY on board: compensate clock path
+                cm_type         = "MMCM"  # PLL is already used by ethphy
             )
+            self.add_csr("ethphy1")
             self.ethphy1.add_timing_constraints(platform, self.crg.cd_sys.clk)
 
-            self.ethphy2 = A7_1000BASEX(
-                qpll_channel = qpll.channels[1],
-                data_pads    = self.platform.request("sfp", 0),
-                sys_clk_freq = self.clk_freq,
-                tx_cm_type   = "PLL",  # Use PLL by default
-                rx_cm_type   = "PLL",  # Use PLL by default
-            )
-
-            self.ethphy3 = A7_1000BASEX(
-                qpll_channel = qpll.channels[1],
-                data_pads    = self.platform.request("sfp", 1),
-                sys_clk_freq = self.clk_freq,
-                tx_cm_type   = "MMCM",  # PLL is already used by ethphy2
-                rx_cm_type   = "MMCM",  # PLL is already used by ethphy2
-            )
-
             if with_etherbone:
-                self.add_etherbone(
-                    name="etherbone",
-                    phy=self.ethphy,
-                    ip_address=eth_ip,
-                    with_ethmac=with_ethernet,
-                    phy_cd="ethphy_eth"
-            )
+                self.add_etherbone(name="etherbone", phy=self.ethphy, ip_address=eth_ip, with_ethmac=with_ethernet, phy_cd="ethphy_eth")
+                self.add_etherbone(name="etherbone1", phy=self.ethphy1, ip_address=eth_ip, with_ethmac=with_ethernet, phy_cd="ethphy1_eth")
             if with_ethernet:
-                self.add_ethernet(
-                    name="ethmac",
-                    phy=self.ethphy,
-                    dynamic_ip=eth_dynamic_ip,
-                    local_ip=eth_ip,
-                    remote_ip=remote_ip,
-                    with_timing_constraints=False,
-                    phy_cd="ethphy_eth"
-                )
-                self.add_ethernet(
-                    name="ethmac1",
-                    phy=self.ethphy1,
-                    with_timing_constraints=False,
-                    phy_cd="ethphy1_eth"
-                )
-                self.add_ethernet(
-                    name="ethmac2",
-                    phy=self.ethphy2,
-                    with_timing_constraints=True,
-                    phy_cd="ethphy2_eth"
-                )
-                self.add_ethernet(
-                    name="ethmac3",
-                    phy=self.ethphy3,
-                    with_timing_constraints=True,
-                    phy_cd="ethphy3_eth"
-                )
+                self.add_ethernet(name="ethmac", phy=self.ethphy, dynamic_ip=eth_dynamic_ip, local_ip=eth_ip, remote_ip=remote_ip, with_timing_constraints=False, phy_cd="ethphy_eth")
+                self.add_ethernet(name="ethmac1", phy=self.ethphy1, with_timing_constraints=False, phy_cd="ethphy1_eth")
+
+        # PCIe -------------------------------------------------------------------------------------
+        if with_pcie:
+            self.pcie_phy = S7PCIEPHY(platform, platform.request("pcie_x2"),
+                data_width = 64,
+                bar0_size  = 0x20000)
+            self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
