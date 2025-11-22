@@ -175,10 +175,9 @@ class BaseSoC(SoCCore):
 
             self.submodules.usb_ohci = USBOHCI(self.platform, self.platform.request("usb_pmodb_dual"), usb_clk_freq=int(48e6))
             self.mem_map["usb_ohci"] = 0x90000000
-            self.bus.add_slave("usb_ohci_ctrl", self.usb_ohci.wb_ctrl, region=SoCRegion(origin=self.mem_map["usb_ohci"], size=0x1000, cached=False)) # FIXME: Mapping.
+            self.bus.add_slave("usb_ohci", self.usb_ohci.wb_ctrl, region=SoCRegion(origin=self.mem_map["usb_ohci"], size=0x1000, cached=False)) # FIXME: Mapping.
             self.dma_bus.add_master("usb_ohci_dma", master=self.usb_ohci.wb_dma)
-
-            self.comb += self.cpu.interrupt[16].eq(self.usb_ohci.interrupt)
+            self.irq.add("usb_ohci", 16)
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:

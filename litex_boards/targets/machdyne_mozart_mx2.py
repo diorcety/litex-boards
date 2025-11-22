@@ -141,9 +141,9 @@ class BaseSoC(SoCCore):
         # USB Host ---------------------------------------------------------------------------------
         if with_usb_host:
             self.usb_ohci = USBOHCI(platform, platform.request("usb_host"), usb_clk_freq=int(48e6))
-            self.bus.add_slave("usb_ohci_ctrl", self.usb_ohci.wb_ctrl, region=SoCRegion(origin=self.mem_map["usb_ohci"], size=0x100000, cached=False))
+            self.bus.add_slave("usb_ohci", self.usb_ohci.wb_ctrl, region=SoCRegion(origin=self.mem_map["usb_ohci"], size=0x100000, cached=False))
             self.dma_bus.add_master("usb_ohci_dma", master=self.usb_ohci.wb_dma)
-            self.comb += self.cpu.interrupt[16].eq(self.usb_ohci.interrupt)
+            self.irq.add("usb_ohci", 16)
 
         # Ethernet ---------------------------------------------------------------------------------
         if with_ethernet:
