@@ -7,25 +7,76 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 
+from collections import defaultdict
+import json
 import math
 
+
+from litex.soc.cores.bitbang import I2CMaster
+from litex.soc.cores.dts import DTSBase, DTSRegMode, HexInt
+from litex.soc.cores.gpio import GPIOIn, GPIOInOut, GPIOOut
+from litex.soc.interconnect.csr import CSRConstant
 from migen import *
+from migen.util.misc import xdir
 
 from litex.gen import *
 
 from litex_boards.platforms import myd_j7a100t
 
+from litex.build.generic_platform import IOStandard, Pins, Subsignal
+
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
-
 from litedram.modules import NT5CC128M16
 from litedram.phy import s7ddrphy
 
 from liteeth.phy import LiteEthS7PHYRGMII
 
 from litepcie.phy.s7pciephy import S7PCIEPHY
+
+
+# PCF8574 ------------------------------------------------------------------------------------------
+class PCF8574(LiteXModule, DTSBase):
+    LINUX_DTS_COMPATIBLE = "nxp,pcf8574"
+
+    def __init__(self, i2c_parent, interrupt=None, reset=None, addr=0x20):
+        super().__init__()
+        self._i2c_parent = CSRConstant(i2c_parent, string=True)
+        self._addr = CSRConstant(addr)
+        if reset is not None:
+            self._reset_parent = CSRConstant(reset[0], string=True)
+            self._reset = CSRConstant(reset[1])
+        if interrupt is not None:
+            self._interrupt_parent = CSRConstant(interrupt[0], string=True)
+            self._interrupt = CSRConstant(interrupt[1])
+
+    @classmethod
+    def linux_dts(cls, name, d, root):
+        parent = d["constants"].get(f"{name}_i2c_parent", None)
+        assert parent is not None, f"No {name}_i2c_parent"
+
+        addr = d["constants"].get(f"{name}_addr", None)
+        assert addr is not None, f"No {name}_addr"
+
+        node = root / "soc" / parent + ("ioext", name, cls, addr, DTSRegMode.CUSTOM)
+        node.entries["reg"] = HexInt(addr)
+        node.entries["gpio-controller"] = None
+        node.entries["#gpio-cells"] = 2
+
+        # Reset
+        reset_parent, reset = d["constants"].get(f"{name}_reset_parent", None), d["constants"].get(f"{name}_reset", None)
+        if reset_parent is not None and reset is not None:
+            node.entries["reset-gpios"] = (root / "soc" / reset_parent, reset, 1)
+
+        # Interrupt
+        interrupt_parent = d["constants"].get(f"{name}_interrupt_parent", None)
+        if interrupt_parent is not None and cls.init_interrupts(name, d, node, 2):
+            node.entries["interrupt-parent"] = root / "soc" / interrupt_parent
+            node.entries["interrupt-controller"] = None
+            node.entries["#interrupt-cells"] = 2
+            node.entries["#address-cells"] = 0
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -37,7 +88,7 @@ class _CRG(LiteXModule):
             self.cd_sys4x     = ClockDomain()
             self.cd_sys4x_dqs = ClockDomain()
             self.cd_idelay    = ClockDomain()
-                
+
         # Clk / Rst
         clk200 = platform.request("clk200")
         rst_n  = platform.request("rst_n", 0)
@@ -52,7 +103,7 @@ class _CRG(LiteXModule):
             pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
             pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
             pll.create_clkout(self.cd_idelay,    200e6)
-        
+
         # IdelayCtrl.
         if with_dram:
             self.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
@@ -142,6 +193,54 @@ class BaseSoC(SoCCore):
             self.leds = LedChaser(
                 pads         = Cat(platform.request_all("baseboard_led"), platform.request_all("som_led")),
                 sys_clk_freq = sys_clk_freq)
+
+        gpio_name, _ = self._add_gpio(platform, "gpio", 1, "IO-EXP", [21], [])
+        i2c_name, _ = self._add_i2c(platform, "i2c", 1, "IO-EXP", 18, 19)
+        self.add_module(f"gpio_exp", PCF8574(i2c_name, (gpio_name, 0)))
+
+    def add_extension(self, platform, name, index, *args):
+        extension = [tuple([name, index] + list(args))]
+        platform.add_extension(extension)
+        return platform.request(name, index)
+
+    def _add_gpio(self, platform, name, port, connector, in_pads, out_pads):
+        args = []
+        if len(in_pads) > 0:
+            args.append(Subsignal("inputs", Pins(" ".join([f"{connector}:{x}" for x in in_pads]))))
+        if len(out_pads) > 0:
+            args.append(Subsignal("outputs", Pins(" ".join([f"{connector}:{x}" for x in out_pads]))))
+        args.append(IOStandard("LVCMOS33"))
+        pads = self.add_extension(
+            platform, name, port, *args
+        )
+
+        gpio_name = f"gpio{port}"
+        if len(in_pads) > 0 and len(out_pads) > 0:
+            gpio = GPIOInOut(pads.inputs, pads.outputs, self.irq.enabled)
+        elif len(in_pads) > 0:
+            gpio = GPIOIn(pads.inputs, self.irq.enabled)
+        else:
+            gpio = GPIOOut(pads.outputs)
+        self.add_module(name=gpio_name, module=gpio)
+        if self.irq.enabled and hasattr(gpio, 'ev'):
+            self.irq.add(gpio_name)
+        return gpio_name, gpio
+
+
+    def _add_i2c(self, platform, name, port, connector, sda, scl):
+        pads = self.add_extension(
+            platform, name, port,
+            Subsignal("sda", Pins(f"{connector}:{sda}")),
+            Subsignal("scl", Pins(f"{connector}:{scl}")),
+            IOStandard("LVCMOS33")
+        )
+
+        ## Add module
+        i2c_name = f"i2c{port}"
+        i2c = I2CMaster(pads)
+        self.add_module(name=i2c_name, module=i2c)
+
+        return i2c_name, i2c
 
 # Build --------------------------------------------------------------------------------------------
 
